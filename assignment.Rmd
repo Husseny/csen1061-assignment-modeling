@@ -1,0 +1,105 @@
+---
+title: "Assignment"
+output: html_document
+---
+```{r}
+library(caret)
+library(RWeka)
+```
+
+#Decision Trees with cross validation for sonar data
+```{r}
+sonar <- read.csv("/var/folders/7d/s_1qwp_n6gb3fwpwc4551xn00000gq/T//RtmpqsSGqX/data1a82bc1ff5e", header=FALSE)
+#Imported sonar data is folded into 10 sets with presence of all classes or labels
+train <- createFolds(sonar$V61, k=10)
+
+#Initializing the training and test sets
+# training_set[[1]] is used with test_set[[1]]
+training_set <- list()
+test_set <- list()
+
+training_set[[1]] <- sample(c(train$Fold01,train$Fold02,train$Fold03,train$Fold04,train$Fold05,train$Fold06,train$Fold07,train$Fold08,train$Fold09))
+training_set[[2]] <- sample(c(train$Fold01,train$Fold02,train$Fold03,train$Fold04,train$Fold05,train$Fold06,train$Fold07,train$Fold08,train$Fold10))
+training_set[[3]] <- sample(c(train$Fold01,train$Fold02,train$Fold03,train$Fold04,train$Fold05,train$Fold06,train$Fold07,train$Fold10,train$Fold09))
+training_set[[4]] <- sample(c(train$Fold01,train$Fold02,train$Fold03,train$Fold04,train$Fold05,train$Fold06,train$Fold10,train$Fold08,train$Fold09))
+training_set[[5]] <- sample(c(train$Fold01,train$Fold02,train$Fold03,train$Fold04,train$Fold05,train$Fold10,train$Fold07,train$Fold08,train$Fold09))
+training_set[[6]] <- sample(c(train$Fold01,train$Fold02,train$Fold03,train$Fold04,train$Fold10,train$Fold06,train$Fold07,train$Fold08,train$Fold09))
+training_set[[7]] <- sample(c(train$Fold01,train$Fold02,train$Fold03,train$Fold10,train$Fold05,train$Fold06,train$Fold07,train$Fold08,train$Fold09))
+training_set[[8]] <- sample(c(train$Fold01,train$Fold02,train$Fold10,train$Fold04,train$Fold05,train$Fold06,train$Fold07,train$Fold08,train$Fold09))
+training_set[[9]] <- sample(c(train$Fold01,train$Fold10,train$Fold03,train$Fold04,train$Fold05,train$Fold06,train$Fold07,train$Fold08,train$Fold09))
+training_set[[10]] <- sample(c(train$Fold10,train$Fold02,train$Fold03,train$Fold04,train$Fold05,train$Fold06,train$Fold07,train$Fold08,train$Fold09))
+
+test_set[[1]] <- train$Fold10
+test_set[[2]] <- train$Fold09
+test_set[[3]] <- train$Fold08
+test_set[[4]] <- train$Fold07
+test_set[[5]] <- train$Fold06
+test_set[[6]] <- train$Fold05
+test_set[[7]] <- train$Fold04
+test_set[[8]] <- train$Fold03
+test_set[[9]] <- train$Fold02
+test_set[[10]] <- train$Fold01
+
+cross_validation_results <- matrix(nrow=11, ncol=4,byrow=TRUE)
+colnames(cross_validation_results) <- c("Accuracy","Precision","Recall","F-Score")
+rownames(cross_validation_results) <- c("k1","k2","k3","k4","k5","k6","k7","k8","k9","k10","Average")
+cross_validation_results <- as.table(cross_validation_results)
+
+for(i in 1:10){
+  sonar_train <- sonar[training_set[[i]],1:61]
+  sonar_test <- sonar[test_set[[i]], 1:61]
+  
+  C45Fit <- J48(V61~., data=sonar_train)
+  accuracy<- evaluate_Weka_classifier(C45Fit)$details["pctCorrect"]
+  predictions <- predict(C45Fit, sonar[,1:60])
+  prediction_table <- table(predictions, sonar$V61)
+  # We assume that mines are the +ve prediction
+  precision <- prediction_table[1]/(prediction_table[1]+prediction_table[2])
+  recall <- prediction_table[1]/(prediction_table[1]+prediction_table[3])
+  f_score <-(2*precision*recall)/(precision+recall)
+  cross_validation_results[i,"Accuracy"] <- accuracy
+  cross_validation_results[i,"Precision"] <- precision
+  cross_validation_results[i,"Recall"] <- recall
+  cross_validation_results[i,"F-Score"] <- f_score
+}
+cross_validation_results["Average","Accuracy"] <- sum(cross_validation_results[1:10,"Accuracy"])/10
+cross_validation_results["Average","Precision"] <- sum(cross_validation_results[1:10,"Precision"])/10
+cross_validation_results["Average","Recall"] <- sum(cross_validation_results[1:10,"Recall"])/10
+cross_validation_results["Average","F-Score"] <- sum(cross_validation_results[1:10,"F-Score"])/10
+
+print(cross_validation_results)
+
+```
+
+
+
+
+# Random Forest with cross validation of k = 10
+```{r}
+randomForestFit <- train(V61 ~ ., method = "rf", data = sonar, tuneLength = 5,trControl = trainControl(method = "cv", indexOut = train))
+
+rff_cross_validation_results <- matrix(ncol=4,byrow=TRUE)
+colnames(rff_cross_validation_results) <- c("Accuracy","Precision","Recall","F-Score")
+
+
+rff_cross_validation_results[,"Accuracy"] <- max(randomForestFit$results[,"Accuracy"])
+prediction_table <- randomForestFit$finalModel$confusion
+rff_cross_validation_results[,"Precision"] <- prediction_table[1]/(prediction_table[1]+prediction_table[2])
+rff_cross_validation_results[,"Recall"] <- prediction_table[1]/(prediction_table[1]+prediction_table[3])
+rff_cross_validation_results[,"F-Score"] <-(2*rff_precision*rff_recall)/(rff_precision+rff_recall)
+
+print(rff_cross_validation_results)
+
+
+```
+
+
+## Neural Network  with cross validation of k = 10
+```{r}
+nnetFit <- train(V61 ~ ., method = "nnet", data = sonar,
+                 tuneLength = 5,
+                 trControl = trainControl(
+                   method = "cv", indexOut = train))
+
+nnetFit_accuracy <- max(nnetFit$results[,"Accuracy"])
+```
