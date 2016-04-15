@@ -86,7 +86,7 @@ rff_cross_validation_results[,"Accuracy"] <- max(randomForestFit$results[,"Accur
 prediction_table <- randomForestFit$finalModel$confusion
 rff_cross_validation_results[,"Precision"] <- prediction_table[1]/(prediction_table[1]+prediction_table[2])
 rff_cross_validation_results[,"Recall"] <- prediction_table[1]/(prediction_table[1]+prediction_table[3])
-rff_cross_validation_results[,"F-Score"] <-(2*rff_precision*rff_recall)/(rff_precision+rff_recall)
+rff_cross_validation_results[,"F-Score"] <-(2*rff_cross_validation_results[,"Precision"]*rff_cross_validation_results[,"Recall"])/(rff_cross_validation_results[,"Precision"]+rff_cross_validation_results[,"Recall"])
 
 print(rff_cross_validation_results)
 
